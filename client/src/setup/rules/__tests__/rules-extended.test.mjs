@@ -1866,5 +1866,54 @@ import test from 'node:test';
       assert.match(promotionGuidance('self', 2), /You must promote/);
       assert.match(promotionGuidance('opp', 2), /Opponent must promote/);
     });
+    
+    // ── name → id resolution (attack-window data plumbing) ──
+    const { resolveCardId, normalizeCardName } = await import('../rules-state.mjs');
+    
+    test('normalizeCardName: lowercases, trims, collapses whitespace', () => {
+      assert.equal(normalizeCardName('  Charizard  EX '), 'charizard ex');
+      assert.equal(normalizeCardName(''), '');
+    });
+    
+    test('resolveCardId: exact name match wins over partial', () => {
+      const summaries = [
+        { id: 1, name: 'Pikachu', category: 'pokemon' },
+        { id: 2, name: 'Pikachu EX', category: 'pokemon' },
+      ];
+      assert.equal(resolveCardId(summaries, 'Pikachu'), 1);
+    });
+    
+    test('resolveCardId: prefers Pokémon when type is Pokémon', () => {
+      const summaries = [
+        { id: 10, name: 'Pikachu', category: 'trainer' },
+        { id: 20, name: 'Pikachu', category: 'pokemon' },
+      ];
+      assert.equal(resolveCardId(summaries, 'Pikachu', 'Pokémon'), 20);
+    });
+    
+    test('resolveCardId: prefers Trainer when type is Trainer', () => {
+      const summaries = [
+        { id: 10, name: 'Poké Ball', category: 'pokemon' },
+        { id: 20, name: 'Poké Ball', category: 'trainer' },
+      ];
+      assert.equal(resolveCardId(summaries, 'Poké Ball', 'Trainer'), 20);
+    });
+    
+    test('resolveCardId: EX variant matches " EX" form', () => {
+      const summaries = [{ id: 42, name: 'Charizard EX', category: 'pokemon' }];
+      assert.equal(resolveCardId(summaries, 'Charizard EX', 'Pokémon'), 42);
+    });
+    
+    test('resolveCardId: no match returns null', () => {
+      const summaries = [{ id: 1, name: 'Totally Different', category: 'pokemon' }];
+      assert.equal(resolveCardId(summaries, 'Nonexistent Card'), null);
+    });
+    
+    test('resolveCardId: empty/invalid input returns null', () => {
+      assert.equal(resolveCardId([], 'Pikachu'), null);
+      assert.equal(resolveCardId(null, 'Pikachu'), null);
+      assert.equal(resolveCardId([{ id: 1, name: 'Pikachu' }], ''), null);
+      assert.equal(resolveCardId([{ name: 'Pikachu' }], 'Pikachu'), null); // no id
+    });
 
     

@@ -213,7 +213,18 @@ import { getCoins, getCoinById } from '../deck-builder/core/coins.mjs';
               `</div>`;
           }
         } else {
-          html += '<div class="rules-aw-section">No attacks defined.</div>';
+          // Self-diagnosing hint: surface why no attacks resolved so a data-plumbing
+          // issue (e.g. zone card never got a TCGdex id) is visible to the player.
+          if (typeof console !== 'undefined') {
+            console.warn('[rules] attack window: no attacks resolved', {
+              name: active.name,
+              hasId: !!active.id,
+              attacks: Array.isArray(active.attacks) ? active.attacks.length : typeof active.attacks,
+            });
+          }
+          const notLoaded = Array.isArray(active.attacks) ? '' : ' · data not loaded (check network / TCGdex)';
+          html += '<div class="rules-aw-section">No attacks defined.' +
+            ` <span class="rules-aw-reason">id=${active.id || '—'}${notLoaded}</span></div>`;
         }
 
         // ── Abilities ──
@@ -1266,7 +1277,7 @@ if (!isTrainer) {
               const text = [card.effect || card.text || []].flat().join(' ');
               const parsed = parseTrainerEffect(text);
               if (!parsed.recognizable) {
-                appendMessage('', `${card.name}: effect not auto-parsed — play it manually.`, 'announcement', false);
+                appendMessage('', `${card.name}: effect not auto-parsed — play it manually. (parser got: "${text.slice(0, 60)}")`, 'announcement', false);
                 return;
               }
               const costStep = parsed.steps.find((s) => s.type === 'discardCost');
